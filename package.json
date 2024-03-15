@@ -1,0 +1,17 @@
+{
+  "name": "Javi B's site",
+  "version": "1.0.0",
+  "main": "index.js",
+    "scripts": {
+    "test": "echo \"Error: no tests\" && exit 1"
+  },
+  "keywords": ["serverless"],
+  "author": "Anahi A Costa",
+  "license": "MIT",
+  "devDependencies": {
+    "aws-sdk": "^2.1579.0",
+    "moment": "^2.30.1",
+    "underscore": "^1.13.6",
+    "uuid": "^9.0.1"
+  }
+}
