@@ -1,6 +1,6 @@
 service: sus-chansons
 
-# Serverless version
+# Serverless version at creation time
 frameworkVersion: "3"
 
 custom:
