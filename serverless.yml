@@ -1,0 +1,179 @@
+service: sus-chansons
+
+# Serverless version at creation time
+frameworkVersion: "3"
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  # set tbl names:
+  songsTable: ${self:custom.stage}-songs
+  usersTable: ${self:custom.stage}-users
+  artistsTable: ${self:custom.stage}-artists
+  platformTable: ${self:custom.stage}-platform
+  # set DynamoDB throughput for prod and np
+  tableThroughputs:
+    prod: 5
+    default: 1
+  tableThroughput: ${self:custom.tableThroughputs.${self:custom.stage}, self:custom.tableThroughputs.default}
+  # access secrets
+  environment:  prod # ${file(env.yml):${self:custom.stage}, file(env.yml):default}
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: dev
+  memorySize: 128
+  timeout: 5
+  endpointType: regional
+  environment:
+    # SONGS_TBL: songs-${self:service}-${opt:stage, self:provider.stage} # this will result on: srvrlss-site-blaubleu-prod 
+      # that is repo name + environement aka stage 
+    SONGS_TBL: ${self:custom.songsTable}
+    # USERS_TBL: users-${self:service}-${opt:stage, self:provider.stage}
+    USERS_TBL: ${self:custom.usersTable}
+    ARTISTS_TBL: ${self:custom.artistsTable}
+    # ARTISTS_TBL: ${self:service}-${opt:stage, self:provider.stage}
+    # PLATFORM_TBL: ${self:service}-${opt:stage, self:provider.stage}
+    PLATFORM_TBL: ${self:custom.platformTable}
+  iam.role.statements: # iamRoleStatements will be deprecated in v 4
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:PutItem
+      Resource:
+        # "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.SONGS_TBL}"
+        - "Fn:GetAtt": [ SongsTable, Arn ]
+        - "Fn:GetAtt": [ UsersTable, Arn ]
+        - "Fn:GetAtt": [ ArtistsTable, Arn ]
+        - "Fn:GetAtt": [ PlatformTable, Arn ]
+
+
+resources:
+  Resources:
+    SongsTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.SONGS_TBL}
+        AttributeDefinitions:
+          - AttributeName: song_id
+            AttributeType: S
+          - AttributeName: song_name
+            AttributeType: S
+        KeySchema:
+          - AttributeName: song_id
+            KeyType: HASH
+          - AttributeName: song_name
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 2
+          WriteCapacityUnits: 2
+        GlobalSecondaryIndexes:
+          - IndexName: song_id-index
+            KeySchema:
+              - AttributeName: song_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}
+
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.USERS_TBL}
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: accessLevel
+            AttributeType: S
+          - AttributeName: lastAccessed
+            AttributeType: N
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+          - AttributeName: lastAccessed
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: user_id-index
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+              - AttributeName: accessLevel
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}
+
+    ArtistsTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.ARTISTS_TBL}
+        AttributeDefinitions:
+          - AttributeName: artist_id
+            AttributeType: S
+          - AttributeName: artist_name
+            AttributeType: S
+          - AttributeName: featured
+            AttributeType: B
+        KeySchema:
+          - AttributeName: artist_id
+            KeyType: HASH
+          - AttributeName: artist_name
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: artist_id-index
+            KeySchema:
+              - AttributeName: artist_id
+                KeyType: HASH
+              - AttributeName: featured
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}
+
+    PlayPlatformTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.PLATFORM_TBL}
+        AttributeDefinitions:
+          - AttributeName: platform_id
+            AttributeType: S
+          - AttributeName: platformName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: platform_id
+            KeyType: HASH
+          - AttributeName: platformName
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: platform_id-index
+            KeySchema:
+              - AttributeName: platform_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}
+
+functions:
+  api:
